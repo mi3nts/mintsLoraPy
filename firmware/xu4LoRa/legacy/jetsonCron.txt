@@ -1,0 +1,5 @@
+@reboot cd /home/teamlary/gitHubRepos/centralHub/firmware/xu4Mqtt && ./runAllJetson.sh 
+30 09 * * * cd /home/teamlary/gitHubRepos/centralHub/firmware/xu4Mqtt && ./runAllJetson.sh 
+* * * * * rsync -avzrtu -e "ssh -p 2222" /home/teamlary/mintsData/raw/ mints@mintsdata.utdallas.edu:raw
+*/5 * * * * cd /home/teamlary/gitHubRepos/centralHub/firmware/xu4Mqtt && python3 skyCamReaderWithSave.py
+*/5 * * * * cd /home/teamlary/gitHubRepos/centralHub/firmware/xu4Mqtt && python3 deleterJetson.py

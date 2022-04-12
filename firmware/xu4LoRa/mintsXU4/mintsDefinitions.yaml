@@ -1,0 +1,4 @@
+
+dataFolder : "/home/teamlary/mnt/teamlary1/mintsData"
+tlsCert : "/etc/ssl/certs/ca-certificates.crt"
+timeSpan : 60
