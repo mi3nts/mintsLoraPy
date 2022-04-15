@@ -74,9 +74,11 @@ timeSpan                  = mintsDefinitions['timeSpan']
 
 nodeIDsPre               = yaml.load(open('mintsXU4/credentials/nodeIDs.yaml'),Loader=yaml.FullLoader)
 nodeIDs                  = nodeIDsPre['nodeIDs']
-
+# 
 loRaE5MiniPorts          = findPorts("CP2102N USB to UART Bridge Controller","PID=10C4:EA60")
 canareePorts             = findPorts("Canaree PM","PID=10C4:EA60")
+gpsPorts                 = findPorts("u-blox GNSS receiver","PID=1546:01A8")
+
 
 keys                     = yaml.load(open('mintsXU4/credentials/keys.yml'),Loader=yaml.FullLoader)
 
@@ -88,6 +90,9 @@ print("Canaree Ports:")
 for dev in canareePorts:
     print("\t{0}".format(dev))
 
+print("GPS Ports:")
+for dev in gpsPorts:
+    print("\t{0}".format(dev))
 
 
 

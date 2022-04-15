@@ -3,6 +3,7 @@
 # check if the received data matches two predefined 'commands'
 import base64
 from cgitb import strong
+from this import d
 import paho.mqtt.client as mqtt
 import datetime
 import yaml
@@ -23,6 +24,7 @@ import numpy as np
 
 loRaE5MiniPorts     = mD.loRaE5MiniPorts
 canareePorts        = mD.canareePorts
+gpsPorts            = mD.gpsPorts
 appKey              = mD.keys['keys']['appKey']
 macAddress          = mD.macAddress
 
@@ -71,14 +73,14 @@ def sendCommand(serIn,commandStrIn,timeOutIn):
                 print(dataString)
                 line = []
                 break
-    return serIn,lines;
+    return lines;
 
 def readSerialLine(serIn,timeOutSensor,sizeExpected):
     line = []
     startTime = time.time()
     startFound = False
     while (time.time()-startTime)<timeOutSensor:   
-        try:
+        # try:
             for c in serIn.read():
                 line.append(chr(c))
                 # print((''.join(line)))
@@ -96,9 +98,40 @@ def readSerialLine(serIn,timeOutSensor,sizeExpected):
                         startFound = True
                         line = []
 
-        except:
-            print("Incomplete String Read")
-            line = []
+        # except:
+        #     print("Incomplete String Read")
+        #     line = []
+
+def readSerialLineStr(serIn,timeOutSensor,strExpected):
+    line = []
+    startTime = time.time()
+    startFound = False
+    while (time.time()-startTime)<timeOutSensor:   
+        # try:
+            for c in serIn.read():
+                line.append(chr(c))
+                # print((''.join(line)))
+
+                if chr(c) == '\n':
+                    if startFound == True:
+                        dataString     = (''.join(line))
+                        dataStringPost = dataString.replace('\r\n', '')
+                        dataStringData =  dataStringPost.split(',')
+                        
+                        if dataStringPost.find(strExpected) >0:
+                            return dataStringData;
+                        else:
+                            line = []
+                    else:    
+                        startFound = True
+                        line = []
+
+        # except:
+        #     print("Incomplete String Read")
+        #     line = []
+
+
+
 
 def swapBytes(inputIn):
     return bytes([c for t in zip(inputIn[1::2], inputIn[::2]) for c in t])
@@ -136,8 +169,17 @@ def getMessegeStringHex(dataIn, sensorIn):
         return strOut;
 
     
-     
+def joinNetwork(numberOfTries,ser,timeOutIn):
+    for currentTry in range(numberOfTries):
+        print("Joining Network Trial: " + str(currentTry))
+        lines = sendCommand(ser,'AT+JOIN',timeOutIn)
+        
+        for line in lines:
+            if line == '+JOIN: Network joined':
+                return True;
 
+    return False;
+    
 
 
 
@@ -147,55 +189,76 @@ def getMessegeStringHex(dataIn, sensorIn):
 if __name__ == "__main__":
 
     # To make sure everything is working run python3 mintsDefinitions.py 
+    
+    # print("Mac Address          : {0}".format(macAddress))
+    # print("LoRa E5 Mini Ports :")
+    # for dev in loRaE5MiniPorts:
+    #     print("\t{0}".format(dev))
+    
+    # print("Canaree Ports:")
+    # for dev in canareePorts:
+    #     print("\t{0}".format(dev))
+    
+    # print("GPS Ports:")
+    # for dev in gpsPorts:
+    #     print("\t{0}".format(dev))
 
-    print("Mac Address          : {0}".format(macAddress))
-    print("LoRa E5 Mini Ports :")
-    for dev in loRaE5MiniPorts:
-        print("\t{0}".format(dev))
-    
-    print("Canaree Ports:")
-    for dev in canareePorts:
-        print("\t{0}".format(dev))
-    
     # Establishing connection to the serial port
     if(len(loRaE5MiniPorts)>0):
-        ser    = openSerial(loRaE5MiniPorts[0],9600)
-        serCan = openSerial(canareePorts[0],115200)
+        serE5Mini    = openSerial(loRaE5MiniPorts[0],9600)
+        serCanaree   = openSerial(canareePorts[0],115200)
+        serGPS       = openSerial(gpsPorts[0],9600)
         
-        sendCommand(ser,'AT+RESET',2)
-        sendCommand(ser,'AT+FDEFAULT',1)
-        sendCommand(ser,'AT+VER',1)
-        sendCommand(ser,'AT+FDEFAULT',1)
-        sendCommand(ser,'AT+ID',1)
-        sendCommand(ser,'AT+KEY=APPKEY, "'+appKey+'"',1)
-        sendCommand(ser,'AT+MODE=LWOTAA',1)
-        sendCommand(ser,'AT+DR=US915',1)
-        sendCommand(ser,'AT+DR=dr2',1)
-        sendCommand(ser,'AT+CH=NUM, 56-63',1)
-        sendCommand(ser,'AT+POWER=20',1)
-        sendCommand(ser,'AT+PORT=2',2)
+        sendCommand(serE5Mini,'AT+RESET',2)
+        sendCommand(serE5Mini,'AT+FDEFAULT',1)
+        sendCommand(serE5Mini,'AT+VER',1)
+        sendCommand(serE5Mini,'AT+FDEFAULT',1)
+        sendCommand(serE5Mini,'AT+ID',1)
+        sendCommand(serE5Mini,'AT+KEY=APPKEY, "'+appKey+'"',1)
+        sendCommand(serE5Mini,'AT+MODE=LWOTAA',1)
+        sendCommand(serE5Mini,'AT+DR=US915',1)
+        sendCommand(serE5Mini,'AT+DR=dr2',1)
+        sendCommand(serE5Mini,'AT+CH=NUM, 56-63',1)
+        sendCommand(serE5Mini,'AT+POWER=20',1)
+        sendCommand(serE5Mini,'AT+PORT=2',2)
         
-        # Check Join 
-        sendCommand(ser,'AT+JOIN',10)
+        # Check Join
+        joined = False 
+        joined = joinNetwork(10,serE5Mini,10)
+
+        if not joined:
+            time.sleep(60)
+            joined  = joinNetwork(10,serE5Mini,10)
+
+        if not joined:
+            print("No Network Found")
+            quit()
+        else:
+            print("Network Found")
 
         messege    = hex(struct.unpack('<I', struct.pack('<I', 254))[0])
         messege = messege.replace('0x','').zfill(2)
-        print(messege)
-        sendCommand(ser,'AT+MSGHEX='+str(messege),5)
-
-        # At this point we work on the canaree 
-        sensorData = readSerialLine(serCan,2,44)
-        print(sensorData)
-        strOut = getMessegeStringHex(sensorData, "IPS7100CNR")
-        sendCommand(ser,'AT+PORT=17',2)
-        sendCommand(ser,'AT+MSGHEX='+str(strOut),5)
+        sendCommand(serE5Mini,'AT+MSGHEX='+str(messege),5)
 
 
-        sensorData = readSerialLine(serCan,2,44)
-        print(sensorData)
-        strOut = getMessegeStringHex(sensorData, "BME688CNR")
-        sendCommand(ser,'AT+PORT=25',2)
-        sendCommand(ser,'AT+MSGHEX='+str(strOut),5)
+        while True:
+            # At this point we work on the canaree 
+            sensorData = readSerialLineStr(serGPS,2,"GGA")
+            print(sensorData)
+
+            sensorData = readSerialLineStr(serGPS,2,"RMC")
+            print(sensorData)
+
+            sensorData = readSerialLine(serCanaree,2,44)
+            strOut = getMessegeStringHex(sensorData, "IPS7100CNR")
+            sendCommand(serE5Mini,'AT+PORT=17',2)
+            sendCommand(serE5Mini,'AT+MSGHEX='+str(strOut),5)
+
+
+            sensorData = readSerialLine(serCanaree,2,44)
+            strOut = getMessegeStringHex(sensorData, "BME688CNR")
+            sendCommand(serE5Mini,'AT+PORT=25',2)
+            sendCommand(serE5Mini,'AT+MSGHEX='+str(strOut),5)
 
 
 
